@@ -1,4 +1,4 @@
-const CACHE = 'companion-v3';
+const CACHE = 'companion-v4';
 const ASSETS = ['.', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-512.png', 'icon-512-maskable.png'];
 
 self.addEventListener('install', e => {
@@ -11,6 +11,22 @@ self.addEventListener('activate', e => {
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+// Daily nudge for installed PWAs (Android Chrome grants this to engaged apps).
+self.addEventListener('periodicsync', e => {
+  if (e.tag === 'daily-nudge'){
+    e.waitUntil(self.registration.showNotification('🌞 My Companion', {
+      body: 'Your daily plan is waiting — tap to check in.',
+      icon: 'icon-512.png',
+      tag: 'daily-nudge'
+    }));
+  }
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.openWindow('.'));
 });
 
 // Network-first so updates arrive, cache fallback so it works offline.

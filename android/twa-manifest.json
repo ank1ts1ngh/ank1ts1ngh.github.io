@@ -13,8 +13,8 @@
   "backgroundColor": "#070A13",
   "enableNotifications": true,
   "startUrl": "/companion/",
-  "iconUrl": "https://raw.githubusercontent.com/ank1ts1ngh/ank1ts1ngh.github.io/main/companion/icon-512.png",
-  "maskableIconUrl": "https://raw.githubusercontent.com/ank1ts1ngh/ank1ts1ngh.github.io/main/companion/icon-512-maskable.png",
+  "iconUrl": "https://raw.githubusercontent.com/ank1ts1ngh/ank1ts1ngh.github.io/main/companion/girl-stage1.png",
+  "maskableIconUrl": "https://raw.githubusercontent.com/ank1ts1ngh/ank1ts1ngh.github.io/main/companion/girl-stage1.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "./signing.keystore",

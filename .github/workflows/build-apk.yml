@@ -8,6 +8,9 @@ on:
       - 'android/**'
       - 'companion/**'
       - '.github/workflows/build-apk.yml'
+  schedule:
+    # Monthly: advances the journey-buddy icon stage and rebuilds the APK
+    - cron: '17 3 1 * *'
 
 permissions:
   contents: write
@@ -65,11 +68,30 @@ jobs:
           git commit -m "Add APK signing key and digital asset links [skip ci]"
           git push
 
+      - name: Pick journey-buddy icon stage
+        run: |
+          # Stage 1 at launch (2026-07-27), stage 2 after 30 days, stage 3 after 60.
+          DAYS=$(( ( $(date -u +%s) - $(date -u -d 2026-07-27 +%s) ) / 86400 ))
+          STAGE=1; [ "$DAYS" -ge 30 ] && STAGE=2; [ "$DAYS" -ge 60 ] && STAGE=3
+          echo "STAGE=$STAGE" >> "$GITHUB_ENV"
+          echo "Journey day $DAYS -> icon stage $STAGE"
+          # Keep the web app's install icon on the same stage (commit only when it changes).
+          if ! cmp -s "companion/girl-stage$STAGE.png" companion/icon-512.png; then
+            cp "companion/girl-stage$STAGE.png" companion/icon-512.png
+            cp "companion/girl-stage$STAGE.png" companion/icon-512-maskable.png
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add companion/icon-512.png companion/icon-512-maskable.png
+            git commit -m "Journey icon: advance to stage $STAGE [skip ci]"
+            git push
+          fi
+
       - name: Build the APK
         run: |
           cd android
-          jq --argjson vc "$GITHUB_RUN_NUMBER" \
-            '.appVersionCode = $vc | .appVersionName = ("1.0." + ($vc | tostring))' \
+          ICON="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/companion/girl-stage${STAGE}.png"
+          jq --argjson vc "$GITHUB_RUN_NUMBER" --arg icon "$ICON" \
+            '.appVersionCode = $vc | .appVersionName = ("1.0." + ($vc | tostring)) | .iconUrl = $icon | .maskableIconUrl = $icon' \
             twa-manifest.json > tmp.json && mv tmp.json twa-manifest.json
           bubblewrap update --skipVersionUpgrade
           bubblewrap build --skipPwaValidation

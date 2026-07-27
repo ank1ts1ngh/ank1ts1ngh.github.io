@@ -1,12 +1,12 @@
 {
-  "name": "My Companion — Personal Daily Agent",
+  "name": "My Companion \u2014 Personal Daily Agent",
   "short_name": "My Companion",
   "description": "Your private daily agent: routine, reminders, health, screen time, journal and insights. All data stays on your device.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#10131a",
-  "theme_color": "#10131a",
+  "background_color": "#070a13",
+  "theme_color": "#070a13",
   "icons": [
     {
       "src": "icon.svg",

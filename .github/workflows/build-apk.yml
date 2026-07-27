@@ -76,6 +76,9 @@ jobs:
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: companion2026
           BUBBLEWRAP_KEY_PASSWORD: companion2026
+          # Must match the SDK shim; Gradle aborts if this disagrees with
+          # the ANDROID_HOME that Bubblewrap sets from its config.
+          ANDROID_SDK_ROOT: /home/runner/android-sdk
 
       - name: Publish APK to GitHub Releases
         run: |

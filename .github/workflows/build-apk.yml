@@ -29,8 +29,16 @@ jobs:
 
       - name: Point Bubblewrap at the runner's JDK and Android SDK
         run: |
+          # Bubblewrap expects the legacy SDK layout with a tools/ directory,
+          # which modern runners no longer ship — build a shim SDK dir with
+          # symlinks to the real one.
+          SDK_SHIM="$HOME/android-sdk"
+          mkdir -p "$SDK_SHIM/tools"
+          ln -s "$ANDROID_HOME"/* "$SDK_SHIM/" 2>/dev/null || true
+          ln -s "$ANDROID_HOME/cmdline-tools/latest/bin" "$SDK_SHIM/tools/bin"
+          ln -s "$ANDROID_HOME/cmdline-tools/latest/lib" "$SDK_SHIM/tools/lib"
           mkdir -p ~/.bubblewrap
-          printf '{"jdkPath": "%s", "androidSdkPath": "%s"}\n' "$JAVA_HOME_17_X64" "$ANDROID_HOME" > ~/.bubblewrap/config.json
+          printf '{"jdkPath": "%s", "androidSdkPath": "%s"}\n' "$JAVA_HOME_17_X64" "$SDK_SHIM" > ~/.bubblewrap/config.json
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
 
       - name: Create signing key (first run only)

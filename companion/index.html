@@ -223,6 +223,16 @@ a{color:var(--a2)}
   </div>
 
   <div class="card">
+    <h2>🤖 Tell me about your day <span class="hint">type or speak — I'll log it all</span></h2>
+    <div class="row">
+      <input id="agentText" placeholder='"slept 7h, insta 2h, 4000 steps, mood good"'>
+      <button class="fit ghost" id="micBtn" onclick="voiceLog()">🎤</button>
+      <button class="fit" onclick="agentLog()">Log</button>
+    </div>
+    <div id="agentOut" class="small" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
     <h2>⏰ Up next</h2>
     <div id="upNext" class="muted">No reminders scheduled.</div>
   </div>
@@ -286,11 +296,22 @@ a{color:var(--a2)}
       Tip: use 📅 to put an item on your Google Calendar so your phone also alerts you when this app is closed.
     </div>
     <div id="routineList"></div>
+    <div style="margin-top:12px">
+      <button class="ghost" onclick="icsAll()">📅 Sync my whole routine to phone calendar</button>
+    </div>
+    <div class="muted small" style="margin-top:6px">
+      Downloads one file — open it and your calendar app adds every item with automatic repeating alarms.
+    </div>
   </div>
 </section>
 
 <!-- ══════════ HEALTH ══════════ -->
 <section class="tab" id="tab-health">
+  <div class="card">
+    <h2>⚡ Quick fill</h2>
+    <button class="ghost" onclick="copyYesterday()">Same as yesterday</button>
+    <span class="muted small" style="margin-left:8px">copies yesterday's sleep, steps & exercise</span>
+  </div>
   <div class="card">
     <h2>🛌 Last night's sleep</h2>
     <div class="row">
@@ -397,6 +418,21 @@ a{color:var(--a2)}
     <div style="margin-top:10px"><button id="btnNotif2" onclick="askNotif()">Enable notifications</button></div>
   </div>
   <div class="card">
+    <h2>🤖 Daily agent briefings</h2>
+    <p class="muted small">I'll notify you with your plan every morning and a summary every evening (while the app or tab is open). Clear a time to turn it off.</p>
+    <div class="row">
+      <div>
+        <label>Morning plan</label>
+        <input id="agMorning" type="time">
+      </div>
+      <div>
+        <label>Evening summary</label>
+        <input id="agEvening" type="time">
+      </div>
+      <button class="fit" onclick="saveAgenda()">Save</button>
+    </div>
+  </div>
+  <div class="card">
     <h2>🔒 Journal PIN</h2>
     <div class="row">
       <input id="setPin" type="password" inputmode="numeric" placeholder="New PIN (blank = no lock)">
@@ -436,12 +472,13 @@ const blank = () => ({
   health: {},              // dateISO -> {water,sleep,steps,exercise,mood}
   screen: {},              // dateISO -> {appName: minutes}
   journal: [],             // {id,date,text}
-  settings: { name:'', pinHash:'', fired:{} } // fired: dateISO -> [routineId]
+  settings: { name:'', pinHash:'', fired:{}, agenda:{ m:'08:00', e:'21:30' } }
 });
 let D;
 try { D = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY) || '{}')); }
 catch { D = blank(); }
 D.settings = Object.assign(blank().settings, D.settings || {});
+D.settings.agenda = Object.assign({ m:'08:00', e:'21:30' }, D.settings.agenda || {});
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
 
 /* ─────────────────── helpers ─────────────────── */
@@ -542,6 +579,97 @@ document.querySelectorAll('#moodRow button').forEach(b => b.onclick = () => {
   save(); renderToday();
 });
 
+/* ─────────────────── the agent: natural-language day logger ─────────────────── */
+const MOOD_WORDS = { great:5, awesome:5, amazing:5, fantastic:5, mast:5,
+  good:4, happy:4, nice:4, accha:4, acha:4, badhiya:4,
+  ok:3, okay:3, fine:3, normal:3, theek:3, meh:3,
+  bad:2, sad:2, low:2, tired:2, stressed:2, thaka:2,
+  terrible:1, awful:1, horrible:1, depressed:1 };
+const RESERVED = new Set(['sleep','slept','soya','neend','steps','step','walked','walk',
+  'water','pani','glass','glasses','drank','gym','exercise','workout','yoga','run','ran',
+  'jog','jogging','running','cycling','mood','feeling','feel','felt','did','done',
+  'finished','completed','used','screen','for','the','a','i','my','of','on']);
+const MOOD_EMOJI = ['😞','😕','😐','🙂','😄'];
+
+function agentLog(){
+  const text = $('agentText').value.trim();
+  if (!text) return;
+  const iso = todayISO();
+  const h = D.health[iso] = D.health[iso] || {};
+  const s = D.screen[iso] = D.screen[iso] || {};
+  const facts = [];
+  // split on commas/"and"/sentence breaks — but not decimal points like "7.5"
+  const clauses = text.toLowerCase().split(/,| and |\n|।|\.\s+|\.$/).map(x => x.trim()).filter(Boolean);
+  for (const c of clauses){
+    let m;
+    // sleep
+    if ((m = c.match(/(?:slept|sleep|soya|neend)[^\d]*(\d+(?:\.\d+)?)/)) ||
+        (m = c.match(/(\d+(?:\.\d+)?)\s*(?:h|hrs?|hours?|ghante)\s*(?:of\s*)?(?:sleep|neend)/))){
+      h.sleep = parseFloat(m[1]); facts.push(`🛌 sleep ${h.sleep}h`); continue;
+    }
+    // steps
+    if (m = c.match(/(\d+(?:\.\d+)?)\s*(k?)\s*steps?/)){
+      h.steps = Math.round(parseFloat(m[1]) * (m[2] ? 1000 : 1));
+      facts.push(`👟 ${h.steps} steps`); continue;
+    }
+    // water
+    if ((m = c.match(/(\d+)\s*(?:glass|glasses)/)) ||
+        (m = c.match(/(?:water|pani)[^\d]*(\d+)/)) ||
+        (m = c.match(/(\d+)\s*(?:water|pani)/))){
+      h.water = +m[1]; facts.push(`💧 water ${h.water}`); continue;
+    }
+    // exercise
+    if (m = c.match(/(?:gym|exercise|workout|yoga|jog(?:ging)?|running|cycling|walk(?:ed)?)[^\d]*(\d+(?:\.\d+)?)\s*(h|hours?|hrs?)?/)){
+      h.exercise = Math.round(parseFloat(m[1]) * (m[2] ? 60 : 1));
+      facts.push(`🏋️ exercise ${h.exercise} min`); continue;
+    }
+    // mood by number or word
+    if (m = c.match(/mood[^\d]*([1-5])\b/)){
+      h.mood = +m[1]; facts.push(`${MOOD_EMOJI[h.mood-1]} mood`); continue;
+    }
+    if (m = c.match(/(?:mood|feeling|feel|felt)\s+(\w+)/)){
+      if (MOOD_WORDS[m[1]]){ h.mood = MOOD_WORDS[m[1]]; facts.push(`${MOOD_EMOJI[h.mood-1]} mood`); continue; }
+    }
+    // mark routine item done: "did walk", "done meditation"
+    if (m = c.match(/^(?:did|done|finished|completed)\s+(.+)/)){
+      const q = m[1].trim();
+      const r = D.routines.find(x => x.title.toLowerCase().includes(q) || q.includes(x.title.toLowerCase()));
+      if (r){
+        const list = D.completions[iso] = D.completions[iso] || [];
+        if (!list.includes(r.id)) list.push(r.id);
+        facts.push(`✅ ${r.title}`); continue;
+      }
+    }
+    // screen time: "instagram 2 hours", "used youtube 45 min"
+    if (m = c.replace(/^(?:used|on)\s+/,'').match(/^([a-z][a-z0-9 ]*?)\s+(\d+(?:\.\d+)?)\s*(h|hrs?|hours?|m|mins?|minutes?)$/)){
+      const app = m[1].trim();
+      if (!RESERVED.has(app)){
+        const name = app.replace(/\b\w/g, ch => ch.toUpperCase());
+        const min = Math.round(parseFloat(m[2]) * (/^h/.test(m[3]) ? 60 : 1));
+        s[name] = (s[name] || 0) + min;
+        facts.push(`📱 ${name} ${fmtMin(min)}`); continue;
+      }
+    }
+  }
+  save(); render();
+  $('agentText').value = '';
+  $('agentOut').innerHTML = facts.length
+    ? '✅ Logged: ' + facts.map(f => `<span class="chip good">${f}</span>`).join(' ')
+    : '<span class="muted">I didn\'t catch that — try like: "slept 7h, instagram 2h, 4000 steps, 3 glasses water, mood good, did walk"</span>';
+}
+
+function voiceLog(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return alert('Voice input is not supported in this browser — type instead 🙂');
+  const r = new SR();
+  r.lang = 'en-IN';
+  $('micBtn').textContent = '👂';
+  r.onresult = e => { $('agentText').value = e.results[0][0].transcript; agentLog(); };
+  r.onend = () => $('micBtn').textContent = '🎤';
+  r.onerror = () => $('micBtn').textContent = '🎤';
+  r.start();
+}
+
 /* ─────────────────── routine ─────────────────── */
 let selDays = [1,2,3,4,5,6,0];
 function renderDayChips(){
@@ -621,6 +749,23 @@ function ics(id){
   a.download = r.title.replace(/\W+/g,'-').toLowerCase() + '.ics';
   a.click(); URL.revokeObjectURL(a.href);
 }
+function icsAll(){
+  const items = D.routines.filter(r => r.time);
+  if (!items.length) return alert('Add routine items with times first 🙂');
+  const events = items.map(r => {
+    const st = nextOccurrence(r), en = new Date(st.getTime() + 30*60000);
+    return ['BEGIN:VEVENT','UID:' + r.id + '@mycompanion','DTSTART:' + calStamp(st),
+      'DTEND:' + calStamp(en),'RRULE:FREQ=WEEKLY;BYDAY=' + r.days.map(d=>BYDAY[d]).join(','),
+      'SUMMARY:' + r.title.replace(/([,;])/g,'\\$1'),
+      'BEGIN:VALARM','TRIGGER:-PT0M','ACTION:DISPLAY',
+      'DESCRIPTION:' + r.title.replace(/([,;])/g,'\\$1'),'END:VALARM','END:VEVENT'].join('\r\n');
+  }).join('\r\n');
+  const body = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//MyCompanion//EN', events, 'END:VCALENDAR'].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], {type:'text/calendar'}));
+  a.download = 'my-companion-routine.ics';
+  a.click(); URL.revokeObjectURL(a.href);
+}
 
 /* ─────────────────── health ─────────────────── */
 function saveHealth(kind){
@@ -631,6 +776,17 @@ function saveHealth(kind){
   if (isNaN(v) || v < 0) return alert('Enter a valid number 🙂');
   h[kind] = v; $(map[kind]).value = '';
   save(); render();
+}
+function copyYesterday(){
+  const yIso = lastNDays(2)[0], y = hOf(yIso);
+  const iso = todayISO();
+  const h = D.health[iso] = D.health[iso] || {};
+  let copied = 0;
+  ['sleep','steps','exercise'].forEach(k => {
+    if (y[k] != null && h[k] == null){ h[k] = y[k]; copied++; }
+  });
+  save(); render();
+  alert(copied ? `Copied ${copied} value(s) from yesterday ⚡` : 'Nothing to copy — yesterday is empty or today is already filled.');
 }
 function drawChart(el, values, labels, fmt){
   const max = Math.max(...values, 1);
@@ -831,6 +987,27 @@ function checkReminders(){
         new Notification('⏰ ' + r.title, { body: 'It\'s time — you planned this for ' + r.time + '.', tag: r.id });
     }
   });
+  // agent briefings: morning plan & evening summary
+  const ag = D.settings.agenda || {};
+  const canNotify = 'Notification' in window && Notification.permission === 'granted';
+  const inWindow = t => { const m = +t.slice(0,2)*60 + +t.slice(3); return now >= m && now <= m + 5; };
+  const todays = D.routines.filter(r => r.days.includes(dow));
+  if (ag.m && !fired.includes('_m') && inWindow(ag.m)){
+    fired.push('_m'); changed = true;
+    const timed = todays.filter(r => r.time).sort((a,b) => a.time.localeCompare(b.time));
+    if (canNotify) new Notification('🌞 Your plan for today', {
+      body: todays.length
+        ? `${todays.length} thing${todays.length>1?'s':''} today.` + (timed.length ? ` First: ${timed[0].title} at ${timed[0].time}.` : '')
+        : 'Nothing planned — add your daily things in the Routine tab.',
+      tag: 'morning' });
+  }
+  if (ag.e && !fired.includes('_e') && inWindow(ag.e)){
+    fired.push('_e'); changed = true;
+    const doneCount = todays.filter(r => done.includes(r.id)).length;
+    if (canNotify) new Notification('🌙 Your day in review', {
+      body: `Routine ${doneCount}/${todays.length} done · water ${hOf(iso).water || 0}/8. Take 30 seconds to tell me about your day.`,
+      tag: 'evening' });
+  }
   if (changed){ save(); renderToday(); }
 }
 setInterval(checkReminders, 30000);
@@ -839,6 +1016,10 @@ setInterval(checkReminders, 30000);
 function saveName(){
   D.settings.name = $('setName').value.trim();
   save(); renderToday(); alert('Saved 👍');
+}
+function saveAgenda(){
+  D.settings.agenda = { m: $('agMorning').value, e: $('agEvening').value };
+  save(); alert('Saved — I\'ll brief you daily 🤖');
 }
 function exportData(){
   const a = document.createElement('a');
@@ -872,10 +1053,18 @@ function render(){
   renderToday(); renderRoutine(); renderHealth();
   renderScreen(); renderJournal(); renderInsights();
   $('setName').value = D.settings.name || '';
+  $('agMorning').value = D.settings.agenda.m || '';
+  $('agEvening').value = D.settings.agenda.e || '';
 }
 render();
 checkReminders();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(async reg => {
+    // On installed Android PWAs this wakes the app periodically for a daily nudge.
+    try { if ('periodicSync' in reg) await reg.periodicSync.register('daily-nudge', { minInterval: 12*60*60*1000 }); }
+    catch(e){}
+  }).catch(()=>{});
+}
 </script>
 </body>
 </html>

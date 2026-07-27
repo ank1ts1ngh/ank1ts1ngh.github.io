@@ -1,0 +1,39 @@
+{
+  "packageId": "io.github.ank1ts1ngh.companion",
+  "host": "ank1ts1ngh.github.io",
+  "name": "My Companion",
+  "launcherName": "My Companion",
+  "display": "standalone",
+  "themeColor": "#10131A",
+  "themeColorDark": "#10131A",
+  "navigationColor": "#10131A",
+  "navigationColorDark": "#10131A",
+  "navigationDividerColor": "#10131A",
+  "navigationDividerColorDark": "#10131A",
+  "backgroundColor": "#10131A",
+  "enableNotifications": true,
+  "startUrl": "/companion/",
+  "iconUrl": "https://raw.githubusercontent.com/ank1ts1ngh/ank1ts1ngh.github.io/main/companion/icon-512.png",
+  "maskableIconUrl": "https://raw.githubusercontent.com/ank1ts1ngh/ank1ts1ngh.github.io/main/companion/icon-512-maskable.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./signing.keystore",
+    "alias": "companion"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://ank1ts1ngh.github.io/companion/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": []
+}

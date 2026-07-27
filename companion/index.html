@@ -6,7 +6,8 @@
 <meta name="theme-color" content="#070a13">
 <title>My Companion — Personal Daily Agent</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%9E%3C/text%3E%3C/svg%3E">
+<link rel="icon" id="favicon" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-512.png">
 <style>
 :root{
   --bg:#070a13;
@@ -258,6 +259,13 @@ a{color:var(--a2)}
       <button data-m="3">😐</button><button data-m="4">🙂</button>
       <button data-m="5">😄</button>
     </div>
+  </div>
+
+  <div class="card" style="text-align:center">
+    <h2>🦋 Your journey buddy</h2>
+    <img id="journeyImg" src="girl-stage1.png" alt="journey buddy"
+      style="width:132px; border-radius:26px; margin:6px 0; box-shadow:0 8px 26px rgba(139,92,246,.4)">
+    <div class="muted small" id="journeyText"></div>
   </div>
 
   <div class="card">
@@ -525,6 +533,18 @@ function renderToday(){
 
   $('notifBanner').style.display =
     ('Notification' in window && Notification.permission === 'default') ? '' : 'none';
+
+  // journey buddy: transforms on day 31 and day 61
+  if (!D.settings.startDate){ D.settings.startDate = todayISO(); save(); }
+  const days = Math.max(0, Math.floor((Date.now() - new Date(D.settings.startDate + 'T00:00')) / 864e5));
+  const stage = days >= 60 ? 3 : days >= 30 ? 2 : 1;
+  $('journeyImg').src = `girl-stage${stage}.png`;
+  $('favicon').href = `girl-stage${stage}.png`;
+  $('journeyText').textContent = stage === 3
+    ? `Day ${days+1} — 2 months of showing up. Look at her glow — that's your consistency. 🏆`
+    : stage === 2
+    ? `Day ${days+1} — one month in and she's getting fitter, just like you. Next change on day 61! 🔥`
+    : `Day ${days+1} of your journey. She transforms with you — on day 31 and day 61. Stay consistent! 💪`;
 
   // up next
   const iso = todayISO(), dow = new Date().getDay();

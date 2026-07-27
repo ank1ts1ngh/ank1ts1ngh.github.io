@@ -1,4 +1,4 @@
-const CACHE = 'companion-v2';
+const CACHE = 'companion-v3';
 const ASSETS = ['.', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-512.png', 'icon-512-maskable.png'];
 
 self.addEventListener('install', e => {

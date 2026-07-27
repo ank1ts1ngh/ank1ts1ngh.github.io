@@ -63,7 +63,7 @@ jobs:
           jq --argjson vc "$GITHUB_RUN_NUMBER" \
             '.appVersionCode = $vc | .appVersionName = ("1.0." + ($vc | tostring))' \
             twa-manifest.json > tmp.json && mv tmp.json twa-manifest.json
-          bubblewrap update
+          bubblewrap update --skipVersionUpgrade
           bubblewrap build --skipPwaValidation
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: companion2026

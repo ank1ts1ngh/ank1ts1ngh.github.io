@@ -1,0 +1,81 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'companion/**'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      KS_PASS: companion2026
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Point Bubblewrap at the runner's JDK and Android SDK
+        run: |
+          mkdir -p ~/.bubblewrap
+          printf '{"jdkPath": "%s", "androidSdkPath": "%s"}\n' "$JAVA_HOME_17_X64" "$ANDROID_HOME" > ~/.bubblewrap/config.json
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+
+      - name: Create signing key (first run only)
+        id: keystore
+        run: |
+          cd android
+          if [ ! -f signing.keystore ]; then
+            "$JAVA_HOME_17_X64/bin/keytool" -genkeypair -v -keystore signing.keystore -alias companion \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$KS_PASS" -keypass "$KS_PASS" \
+              -dname "CN=My Companion, OU=Personal, O=ank1ts1ngh"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit signing key and assetlinks.json (first run only)
+        if: steps.keystore.outputs.created == 'true'
+        run: |
+          FP=$("$JAVA_HOME_17_X64/bin/keytool" -list -v -keystore android/signing.keystore -alias companion -storepass "$KS_PASS" | grep 'SHA256:' | head -1 | awk '{print $2}')
+          mkdir -p .well-known
+          printf '[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"io.github.ank1ts1ngh.companion","sha256_cert_fingerprints":["%s"]}}]\n' "$FP" > .well-known/assetlinks.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add android/signing.keystore .well-known/assetlinks.json
+          git commit -m "Add APK signing key and digital asset links [skip ci]"
+          git push
+
+      - name: Build the APK
+        run: |
+          cd android
+          jq --argjson vc "$GITHUB_RUN_NUMBER" \
+            '.appVersionCode = $vc | .appVersionName = ("1.0." + ($vc | tostring))' \
+            twa-manifest.json > tmp.json && mv tmp.json twa-manifest.json
+          bubblewrap update
+          bubblewrap build --skipPwaValidation
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: companion2026
+          BUBBLEWRAP_KEY_PASSWORD: companion2026
+
+      - name: Publish APK to GitHub Releases
+        run: |
+          mv android/app-release-signed.apk My-Companion.apk
+          gh release create companion-app \
+            --title "My Companion — Android app" \
+            --notes "Download **My-Companion.apk** below, open it on your Android phone, and allow the install. Updates are published to this same page." \
+            2>/dev/null || true
+          gh release upload companion-app My-Companion.apk --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

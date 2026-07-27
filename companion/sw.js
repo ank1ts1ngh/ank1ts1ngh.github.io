@@ -1,5 +1,5 @@
-const CACHE = 'companion-v1';
-const ASSETS = ['.', 'index.html', 'manifest.webmanifest', 'icon.svg'];
+const CACHE = 'companion-v2';
+const ASSETS = ['.', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-512.png', 'icon-512-maskable.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10131a">
+<title>My Companion — Personal Daily Agent</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%9E%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f5f6fa; --card:#ffffff; --ink:#1c2130; --muted:#69707f;
+  --accent:#4f6ef7; --accent-soft:#e8ecfe; --good:#22a06b; --warn:#e5762e; --bad:#d64550;
+  --line:#e5e8f0; --shadow:0 1px 3px rgba(20,25,40,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#10131a; --card:#1a1f2b; --ink:#eef1f8; --muted:#98a0b3;
+    --accent:#7b93ff; --accent-soft:#232c4a; --line:#2a3145; --shadow:0 1px 3px rgba(0,0,0,.4); }
+}
+*{box-sizing:border-box; margin:0}
+html,body{height:100%}
+body{
+  font:16px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+  background:var(--bg); color:var(--ink);
+  padding-bottom:calc(64px + env(safe-area-inset-bottom));
+}
+header{
+  padding:20px 18px 10px; max-width:640px; margin:0 auto;
+}
+header h1{font-size:1.35rem}
+header .sub{color:var(--muted); font-size:.9rem}
+main{max-width:640px; margin:0 auto; padding:0 14px}
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:14px 16px; margin:12px 0; box-shadow:var(--shadow);
+}
+.card h2{font-size:1.02rem; margin-bottom:8px}
+.card h2 .hint{font-weight:400; font-size:.8rem; color:var(--muted)}
+.muted{color:var(--muted); font-size:.88rem}
+.small{font-size:.82rem}
+button{
+  font:inherit; border:none; border-radius:10px; cursor:pointer;
+  background:var(--accent); color:#fff; padding:9px 14px;
+}
+button.ghost{background:var(--accent-soft); color:var(--accent)}
+button.subtle{background:transparent; color:var(--muted); padding:6px}
+button.danger{background:var(--bad)}
+button:active{transform:scale(.97)}
+input,select,textarea{
+  font:inherit; color:var(--ink); background:var(--bg);
+  border:1px solid var(--line); border-radius:10px; padding:9px 11px; width:100%;
+}
+textarea{min-height:90px; resize:vertical}
+label{font-size:.84rem; color:var(--muted); display:block; margin:10px 0 4px}
+.row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.row > *{flex:1}
+.row > .fit{flex:0 0 auto}
+/* nav */
+nav{
+  position:fixed; bottom:0; left:0; right:0; z-index:50;
+  background:var(--card); border-top:1px solid var(--line);
+  display:flex; justify-content:space-around;
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+}
+nav button{
+  background:none; color:var(--muted); display:flex; flex-direction:column;
+  align-items:center; gap:1px; font-size:.62rem; padding:4px 8px; border-radius:10px;
+}
+nav button .ico{font-size:1.25rem; line-height:1.2}
+nav button.active{color:var(--accent); background:var(--accent-soft)}
+.tab{display:none}
+.tab.active{display:block; animation:fade .18s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1}}
+/* chips & lists */
+.chip{
+  display:inline-block; padding:3px 10px; border-radius:99px;
+  background:var(--accent-soft); color:var(--accent); font-size:.75rem; margin:2px 3px 2px 0;
+}
+.chip.good{background:rgba(34,160,107,.14); color:var(--good)}
+.chip.warn{background:rgba(229,118,46,.14); color:var(--warn)}
+.chip.bad{background:rgba(214,69,80,.14); color:var(--bad)}
+.item{
+  display:flex; align-items:center; gap:12px; padding:10px 2px;
+  border-bottom:1px solid var(--line);
+}
+.item:last-child{border-bottom:none}
+.item .grow{flex:1; min-width:0}
+.item .title{font-weight:600}
+.item.done .title{text-decoration:line-through; color:var(--muted); font-weight:400}
+.checkbox{
+  width:26px; height:26px; flex:0 0 26px; border-radius:8px;
+  border:2px solid var(--line); display:flex; align-items:center;
+  justify-content:center; cursor:pointer; color:transparent; user-select:none;
+}
+.item.done .checkbox{background:var(--good); border-color:var(--good); color:#fff}
+/* counters */
+.counter{display:flex; align-items:center; gap:14px; justify-content:center}
+.counter button{width:44px; height:44px; border-radius:50%; font-size:1.3rem; padding:0}
+.counter .val{font-size:1.6rem; font-weight:700; min-width:70px; text-align:center}
+.moodrow{display:flex; justify-content:space-between; gap:6px}
+.moodrow button{
+  flex:1; background:var(--bg); border:1px solid var(--line); font-size:1.5rem; padding:8px 0;
+}
+.moodrow button.sel{background:var(--accent-soft); border-color:var(--accent)}
+/* bars chart */
+.chart{display:flex; align-items:flex-end; gap:6px; height:110px; margin-top:10px}
+.chart .bar{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%;
+  justify-content:flex-end;
+}
+.chart .bar i{
+  display:block; width:100%; max-width:36px; border-radius:6px 6px 2px 2px;
+  background:var(--accent); min-height:2px;
+}
+.chart .bar span{font-size:.62rem; color:var(--muted)}
+.daychips{display:flex; gap:5px; flex-wrap:wrap}
+.daychips span{
+  padding:6px 0; width:38px; text-align:center; border-radius:9px; cursor:pointer;
+  background:var(--bg); border:1px solid var(--line); font-size:.78rem; user-select:none;
+}
+.daychips span.sel{background:var(--accent); border-color:var(--accent); color:#fff}
+.banner{
+  border-radius:12px; padding:10px 14px; margin:12px 0; font-size:.88rem;
+  background:var(--accent-soft); color:var(--accent);
+}
+.stat3{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; text-align:center}
+.stat3 .n{font-size:1.25rem; font-weight:700}
+.stat3 .l{font-size:.7rem; color:var(--muted)}
+dialog{
+  border:none; border-radius:16px; padding:18px; width:min(92vw,420px);
+  background:var(--card); color:var(--ink);
+}
+dialog::backdrop{background:rgba(10,12,18,.55)}
+a{color:var(--accent)}
+.empty{color:var(--muted); font-size:.88rem; text-align:center; padding:14px 0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="greeting">Hello 👋</h1>
+  <div class="sub" id="dateline"></div>
+</header>
+
+<main>
+
+<!-- ══════════ TODAY ══════════ -->
+<section class="tab active" id="tab-today">
+  <div id="notifBanner" class="banner" style="display:none">
+    🔔 Turn on notifications so I can remind you even when you're on another tab.
+    <div style="margin-top:8px"><button id="btnEnableNotif">Enable reminders</button></div>
+  </div>
+
+  <div class="card">
+    <h2>⏰ Up next</h2>
+    <div id="upNext" class="muted">No reminders scheduled.</div>
+  </div>
+
+  <div class="card">
+    <h2>✅ Today's routine <span class="hint" id="routineProgress"></span></h2>
+    <div id="todayRoutine"></div>
+  </div>
+
+  <div class="card">
+    <h2>💧 Water <span class="hint">glasses today</span></h2>
+    <div class="counter">
+      <button class="ghost" onclick="bumpWater(-1)">−</button>
+      <div class="val"><span id="waterVal">0</span>/8</div>
+      <button onclick="bumpWater(1)">+</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🙂 Mood right now</h2>
+    <div class="moodrow" id="moodRow">
+      <button data-m="1">😞</button><button data-m="2">😕</button>
+      <button data-m="3">😐</button><button data-m="4">🙂</button>
+      <button data-m="5">😄</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>💡 Thought for today</h2>
+    <div class="muted" id="quote"></div>
+  </div>
+</section>
+
+<!-- ══════════ ROUTINE ══════════ -->
+<section class="tab" id="tab-routine">
+  <div class="card">
+    <h2>➕ Add a daily thing</h2>
+    <label>What is it?</label>
+    <input id="rTitle" placeholder="e.g. Morning walk, Take medicine, Call Mom">
+    <div class="row">
+      <div>
+        <label>Remind me at</label>
+        <input id="rTime" type="time" value="08:00">
+      </div>
+      <div>
+        <label>Category</label>
+        <select id="rCat">
+          <option>🏃 Health</option><option>💼 Work</option><option>📚 Study</option>
+          <option>❤️ Personal</option><option>💊 Medicine</option><option>🏠 Home</option>
+        </select>
+      </div>
+    </div>
+    <label>Which days?</label>
+    <div class="daychips" id="rDays"></div>
+    <div style="margin-top:12px"><button onclick="addRoutine()">Add to my routine</button></div>
+  </div>
+
+  <div class="card">
+    <h2>📋 My routine</h2>
+    <div class="muted small" style="margin-bottom:6px">
+      Tip: use 📅 to put an item on your Google Calendar so your phone also alerts you when this app is closed.
+    </div>
+    <div id="routineList"></div>
+  </div>
+</section>
+
+<!-- ══════════ HEALTH ══════════ -->
+<section class="tab" id="tab-health">
+  <div class="card">
+    <h2>🛌 Last night's sleep</h2>
+    <div class="row">
+      <input id="hSleep" type="number" min="0" max="24" step="0.5" placeholder="hours e.g. 7.5">
+      <button class="fit" onclick="saveHealth('sleep')">Save</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>👟 Steps today</h2>
+    <div class="row">
+      <input id="hSteps" type="number" min="0" step="100" placeholder="e.g. 6500 (from your phone's health app)">
+      <button class="fit" onclick="saveHealth('steps')">Save</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>🏋️ Exercise minutes</h2>
+    <div class="row">
+      <input id="hEx" type="number" min="0" step="5" placeholder="e.g. 30">
+      <button class="fit" onclick="saveHealth('exercise')">Save</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>📈 Last 7 days — sleep (hours)</h2>
+    <div class="chart" id="sleepChart"></div>
+  </div>
+  <div class="card">
+    <h2>📈 Last 7 days — steps</h2>
+    <div class="chart" id="stepsChart"></div>
+  </div>
+</section>
+
+<!-- ══════════ SCREEN TIME ══════════ -->
+<section class="tab" id="tab-screen">
+  <div class="card">
+    <h2>📱 Log screen time <span class="hint">copy from Settings → Screen Time / Digital Wellbeing</span></h2>
+    <div class="row">
+      <input id="sApp" list="appNames" placeholder="App (e.g. Instagram)">
+      <input id="sMin" type="number" min="0" step="5" placeholder="minutes" style="max-width:110px">
+      <button class="fit" onclick="addScreen()">Add</button>
+    </div>
+    <datalist id="appNames"></datalist>
+  </div>
+  <div class="card">
+    <h2>Today's apps <span class="hint" id="screenTotal"></span></h2>
+    <div id="screenList"></div>
+  </div>
+  <div class="card">
+    <h2>📈 Last 7 days — total minutes</h2>
+    <div class="chart" id="screenChart"></div>
+  </div>
+</section>
+
+<!-- ══════════ JOURNAL ══════════ -->
+<section class="tab" id="tab-journal">
+  <div class="card" id="journalLock" style="display:none">
+    <h2>🔒 Private journal</h2>
+    <p class="muted">Enter your PIN to open.</p>
+    <div class="row" style="margin-top:8px">
+      <input id="pinTry" type="password" inputmode="numeric" placeholder="PIN">
+      <button class="fit" onclick="tryPin()">Unlock</button>
+    </div>
+    <p class="muted small" id="pinMsg"></p>
+  </div>
+  <div id="journalBody">
+    <div class="card">
+      <h2>✍️ Write anything — it never leaves this device</h2>
+      <textarea id="jText" placeholder="How was your day? What's on your mind?"></textarea>
+      <div style="margin-top:10px"><button onclick="addJournal()">Save entry</button></div>
+    </div>
+    <div class="card">
+      <h2>📖 My entries</h2>
+      <div id="journalList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ INSIGHTS ══════════ -->
+<section class="tab" id="tab-insights">
+  <div class="card">
+    <h2>📊 Your week at a glance</h2>
+    <div class="stat3" id="weekStats"></div>
+  </div>
+  <div class="card">
+    <h2>🧠 What I noticed about you</h2>
+    <div id="insightsList"></div>
+  </div>
+</section>
+
+<!-- ══════════ SETTINGS ══════════ -->
+<section class="tab" id="tab-settings">
+  <div class="card">
+    <h2>👤 About you</h2>
+    <label>Your name (for greetings)</label>
+    <div class="row">
+      <input id="setName" placeholder="Your name">
+      <button class="fit" onclick="saveName()">Save</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>🔔 Reminders</h2>
+    <p class="muted small">Reminders fire while this app or its tab is open. For alerts when it's closed,
+      use the 📅 button on routine items to add them to Google Calendar, or set a phone alarm.
+      On your phone, use “Add to Home Screen” to install this as an app.</p>
+    <div style="margin-top:10px"><button id="btnNotif2" onclick="askNotif()">Enable notifications</button></div>
+  </div>
+  <div class="card">
+    <h2>🔒 Journal PIN</h2>
+    <div class="row">
+      <input id="setPin" type="password" inputmode="numeric" placeholder="New PIN (blank = no lock)">
+      <button class="fit" onclick="setPin()">Set PIN</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>💾 Your data</h2>
+    <p class="muted small">Everything is stored only in this browser. Back it up any time.</p>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost" onclick="exportData()">Export backup</button>
+      <button class="ghost" onclick="document.getElementById('importFile').click()">Import backup</button>
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
+    <div style="margin-top:10px"><button class="danger" onclick="resetData()">Erase everything</button></div>
+  </div>
+</section>
+
+</main>
+
+<nav id="nav">
+  <button data-tab="today" class="active"><span class="ico">🌞</span>Today</button>
+  <button data-tab="routine"><span class="ico">🔁</span>Routine</button>
+  <button data-tab="health"><span class="ico">❤️</span>Health</button>
+  <button data-tab="screen"><span class="ico">📱</span>Screen</button>
+  <button data-tab="journal"><span class="ico">📔</span>Journal</button>
+  <button data-tab="insights"><span class="ico">🧠</span>Insights</button>
+  <button data-tab="settings"><span class="ico">⚙️</span>More</button>
+</nav>
+
+<script>
+/* ─────────────────── storage ─────────────────── */
+const KEY = 'companion.data.v1';
+const blank = () => ({
+  routines: [],            // {id,title,time,days[],cat,createdAt}
+  completions: {},         // dateISO -> [routineId]
+  health: {},              // dateISO -> {water,sleep,steps,exercise,mood}
+  screen: {},              // dateISO -> {appName: minutes}
+  journal: [],             // {id,date,text}
+  settings: { name:'', pinHash:'', fired:{} } // fired: dateISO -> [routineId]
+});
+let D;
+try { D = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY) || '{}')); }
+catch { D = blank(); }
+D.settings = Object.assign(blank().settings, D.settings || {});
+const save = () => localStorage.setItem(KEY, JSON.stringify(D));
+
+/* ─────────────────── helpers ─────────────────── */
+const $ = id => document.getElementById(id);
+const todayISO = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hOf = iso => D.health[iso] || {};
+const lastNDays = n => { const out=[]; for(let i=n-1;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')); } return out; };
+const fmtMin = m => m>=60 ? Math.floor(m/60)+'h '+(m%60? m%60+'m':'') : m+'m';
+
+/* ─────────────────── tabs ─────────────────── */
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#nav button').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  $('tab-'+b.dataset.tab).classList.add('active');
+  render();
+});
+
+/* ─────────────────── today ─────────────────── */
+const QUOTES = [
+  "Small daily habits beat big occasional efforts.",
+  "Drink water before you feel thirsty.",
+  "Your future self is watching what you do today.",
+  "A 10-minute walk can reset a bad mood.",
+  "Sleep is the cheapest medicine you'll ever get.",
+  "Less screen, more life.",
+  "Done is better than perfect.",
+  "Take a deep breath — you're doing better than you think.",
+  "Consistency is a superpower anyone can have.",
+  "Rest is productive too."
+];
+
+function renderToday(){
+  const name = D.settings.name;
+  const h = new Date().getHours();
+  const part = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  $('greeting').textContent = `${part}${name ? ', '+name : ''} 👋`;
+  $('dateline').textContent = new Date().toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const dayIdx = Math.floor(Date.now()/864e5);
+  $('quote').textContent = '“' + QUOTES[dayIdx % QUOTES.length] + '”';
+
+  $('notifBanner').style.display =
+    ('Notification' in window && Notification.permission === 'default') ? '' : 'none';
+
+  // up next
+  const iso = todayISO(), dow = new Date().getDay();
+  const now = new Date().getHours()*60 + new Date().getMinutes();
+  const done = D.completions[iso] || [];
+  const upcoming = D.routines
+    .filter(r => r.days.includes(dow) && r.time && !done.includes(r.id))
+    .map(r => ({...r, mins: +r.time.slice(0,2)*60 + +r.time.slice(3)}))
+    .sort((a,b) => a.mins - b.mins);
+  const next = upcoming.filter(r => r.mins >= now);
+  const overdue = upcoming.filter(r => r.mins < now);
+  let html = '';
+  if (overdue.length) html += overdue.map(r => `<div class="item"><span class="chip bad">missed ${r.time}</span><div class="grow title">${esc(r.title)}</div></div>`).join('');
+  if (next.length) html += next.slice(0,3).map(r => `<div class="item"><span class="chip">${r.time}</span><div class="grow title">${esc(r.title)}</div></div>`).join('');
+  $('upNext').innerHTML = html || '<span class="muted">All caught up for today 🎉</span>';
+
+  // routine checklist
+  const todays = D.routines.filter(r => r.days.includes(dow));
+  $('todayRoutine').innerHTML = todays.length ? todays.map(r => `
+    <div class="item ${done.includes(r.id) ? 'done':''}">
+      <div class="checkbox" onclick="toggleDone('${r.id}')">✓</div>
+      <div class="grow"><div class="title">${esc(r.title)}</div>
+        <div class="muted small">${r.time || 'any time'} · ${esc(r.cat)}</div></div>
+    </div>`).join('')
+    : '<div class="empty">Nothing yet — add your daily things in the Routine tab.</div>';
+  $('routineProgress').textContent = todays.length ? `${todays.filter(r=>done.includes(r.id)).length}/${todays.length} done` : '';
+
+  // water + mood
+  $('waterVal').textContent = hOf(iso).water || 0;
+  document.querySelectorAll('#moodRow button').forEach(b =>
+    b.classList.toggle('sel', +b.dataset.m === hOf(iso).mood));
+}
+
+function toggleDone(id){
+  const iso = todayISO();
+  const list = D.completions[iso] = D.completions[iso] || [];
+  const i = list.indexOf(id);
+  i >= 0 ? list.splice(i,1) : list.push(id);
+  save(); render();
+}
+function bumpWater(n){
+  const iso = todayISO();
+  const h = D.health[iso] = D.health[iso] || {};
+  h.water = Math.max(0, (h.water||0) + n);
+  save(); renderToday();
+}
+document.querySelectorAll('#moodRow button').forEach(b => b.onclick = () => {
+  const iso = todayISO();
+  (D.health[iso] = D.health[iso] || {}).mood = +b.dataset.m;
+  save(); renderToday();
+});
+
+/* ─────────────────── routine ─────────────────── */
+let selDays = [1,2,3,4,5,6,0];
+function renderDayChips(){
+  $('rDays').innerHTML = DAYS.map((d,i) =>
+    `<span class="${selDays.includes(i)?'sel':''}" onclick="flipDay(${i})">${d}</span>`).join('');
+}
+function flipDay(i){
+  const p = selDays.indexOf(i);
+  p >= 0 ? selDays.splice(p,1) : selDays.push(i);
+  renderDayChips();
+}
+function addRoutine(){
+  const title = $('rTitle').value.trim();
+  if (!title) return alert('Give it a name first 🙂');
+  if (!selDays.length) return alert('Pick at least one day.');
+  D.routines.push({ id: uid(), title, time: $('rTime').value, days:[...selDays],
+    cat: $('rCat').value, createdAt: Date.now() });
+  $('rTitle').value = '';
+  save(); render();
+}
+function delRoutine(id){
+  if (!confirm('Remove this from your routine?')) return;
+  D.routines = D.routines.filter(r => r.id !== id);
+  save(); render();
+}
+function renderRoutine(){
+  renderDayChips();
+  $('routineList').innerHTML = D.routines.length ? D.routines.map(r => `
+    <div class="item">
+      <div class="grow">
+        <div class="title">${esc(r.title)}</div>
+        <div class="muted small">${r.time || 'any time'} · ${esc(r.cat)} ·
+          ${r.days.length === 7 ? 'every day' : r.days.map(d=>DAYS[d]).join(' ')}</div>
+      </div>
+      <button class="subtle" title="Add to Google Calendar" onclick="gcal('${r.id}')">📅</button>
+      <button class="subtle" title="Download .ics for any calendar app" onclick="ics('${r.id}')">⬇️</button>
+      <button class="subtle" title="Delete" onclick="delRoutine('${r.id}')">🗑️</button>
+    </div>`).join('')
+    : '<div class="empty">Your routine is empty. Add your first daily thing above ⬆️</div>';
+}
+
+/* calendar integration — free, no API keys */
+const BYDAY = ['SU','MO','TU','WE','TH','FR','SA'];
+function nextOccurrence(r){
+  const d = new Date();
+  const [hh, mm] = (r.time || '09:00').split(':').map(Number);
+  for (let i = 0; i < 8; i++){
+    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate()+i, hh, mm);
+    if (r.days.includes(t.getDay()) && t > new Date()) return t;
+  }
+  return d;
+}
+const calStamp = t =>
+  t.getFullYear() + String(t.getMonth()+1).padStart(2,'0') + String(t.getDate()).padStart(2,'0') +
+  'T' + String(t.getHours()).padStart(2,'0') + String(t.getMinutes()).padStart(2,'0') + '00';
+function gcal(id){
+  const r = D.routines.find(x => x.id === id); if (!r) return;
+  const s = nextOccurrence(r), e = new Date(s.getTime() + 30*60000);
+  const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+    '&text=' + encodeURIComponent(r.title) +
+    '&dates=' + calStamp(s) + '/' + calStamp(e) +
+    '&recur=' + encodeURIComponent('RRULE:FREQ=WEEKLY;BYDAY=' + r.days.map(d=>BYDAY[d]).join(',')) +
+    '&details=' + encodeURIComponent('Added from My Companion — my personal daily agent.');
+  window.open(url, '_blank');
+}
+function ics(id){
+  const r = D.routines.find(x => x.id === id); if (!r) return;
+  const s = nextOccurrence(r), e = new Date(s.getTime() + 30*60000);
+  const body = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//MyCompanion//EN','BEGIN:VEVENT',
+    'UID:' + r.id + '@mycompanion','DTSTART:' + calStamp(s),'DTEND:' + calStamp(e),
+    'RRULE:FREQ=WEEKLY;BYDAY=' + r.days.map(d=>BYDAY[d]).join(','),
+    'SUMMARY:' + r.title.replace(/([,;])/g,'\\$1'),
+    'BEGIN:VALARM','TRIGGER:-PT0M','ACTION:DISPLAY','DESCRIPTION:' + r.title.replace(/([,;])/g,'\\$1'),
+    'END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], {type:'text/calendar'}));
+  a.download = r.title.replace(/\W+/g,'-').toLowerCase() + '.ics';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ─────────────────── health ─────────────────── */
+function saveHealth(kind){
+  const iso = todayISO();
+  const h = D.health[iso] = D.health[iso] || {};
+  const map = { sleep:'hSleep', steps:'hSteps', exercise:'hEx' };
+  const v = parseFloat($(map[kind]).value);
+  if (isNaN(v) || v < 0) return alert('Enter a valid number 🙂');
+  h[kind] = v; $(map[kind]).value = '';
+  save(); render();
+}
+function drawChart(el, values, labels, fmt){
+  const max = Math.max(...values, 1);
+  el.innerHTML = values.map((v,i) => `
+    <div class="bar" title="${fmt(v)}">
+      <i style="height:${Math.round(v/max*100)}%"></i><span>${labels[i]}</span>
+    </div>`).join('');
+}
+function renderHealth(){
+  const days = lastNDays(7);
+  const labels = days.map(d => DAYS[new Date(d+'T12:00').getDay()]);
+  const iso = todayISO();
+  const h = hOf(iso);
+  if (h.sleep != null) $('hSleep').placeholder = `today: ${h.sleep}h`;
+  if (h.steps != null) $('hSteps').placeholder = `today: ${h.steps}`;
+  if (h.exercise != null) $('hEx').placeholder = `today: ${h.exercise} min`;
+  drawChart($('sleepChart'), days.map(d => hOf(d).sleep || 0), labels, v => v+'h');
+  drawChart($('stepsChart'), days.map(d => hOf(d).steps || 0), labels, v => v+' steps');
+}
+
+/* ─────────────────── screen time ─────────────────── */
+function screenTotal(iso){
+  return Object.values(D.screen[iso] || {}).reduce((a,b) => a+b, 0);
+}
+function addScreen(){
+  const app = $('sApp').value.trim(), min = parseInt($('sMin').value);
+  if (!app || isNaN(min) || min <= 0) return alert('Enter an app name and minutes 🙂');
+  const iso = todayISO();
+  const s = D.screen[iso] = D.screen[iso] || {};
+  s[app] = (s[app] || 0) + min;
+  $('sApp').value = ''; $('sMin').value = '';
+  save(); render();
+}
+function delScreen(app){
+  delete (D.screen[todayISO()] || {})[app];
+  save(); render();
+}
+function renderScreen(){
+  const iso = todayISO(), s = D.screen[iso] || {};
+  const apps = Object.entries(s).sort((a,b) => b[1]-a[1]);
+  $('screenTotal').textContent = apps.length ? 'total ' + fmtMin(screenTotal(iso)) : '';
+  $('screenList').innerHTML = apps.length ? apps.map(([app,min]) => `
+    <div class="item">
+      <div class="grow"><span class="title">${esc(app)}</span></div>
+      <span class="chip ${min >= 120 ? 'bad' : min >= 60 ? 'warn' : ''}">${fmtMin(min)}</span>
+      <button class="subtle" onclick="delScreen('${esc(app).replace(/'/g,"\\'")}')">🗑️</button>
+    </div>`).join('') : '<div class="empty">Nothing logged today.</div>';
+  // remembered app names for autocomplete
+  const known = new Set();
+  Object.values(D.screen).forEach(day => Object.keys(day).forEach(a => known.add(a)));
+  $('appNames').innerHTML = [...known].map(a => `<option value="${esc(a)}">`).join('');
+  const days = lastNDays(7);
+  drawChart($('screenChart'), days.map(screenTotal),
+    days.map(d => DAYS[new Date(d+'T12:00').getDay()]), fmtMin);
+}
+
+/* ─────────────────── journal (PIN protected) ─────────────────── */
+let unlocked = false;
+async function sha(s){
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+async function tryPin(){
+  if (await sha($('pinTry').value) === D.settings.pinHash){
+    unlocked = true; $('pinTry').value = ''; renderJournal();
+  } else $('pinMsg').textContent = 'Wrong PIN, try again.';
+}
+async function setPin(){
+  const p = $('setPin').value;
+  D.settings.pinHash = p ? await sha(p) : '';
+  $('setPin').value = ''; unlocked = false;
+  save(); alert(p ? 'PIN set. Journal is now locked. 🔒' : 'PIN removed.');
+}
+function addJournal(){
+  const t = $('jText').value.trim();
+  if (!t) return;
+  D.journal.unshift({ id: uid(), date: new Date().toISOString(), text: t });
+  $('jText').value = '';
+  save(); renderJournal();
+}
+function delJournal(id){
+  if (!confirm('Delete this entry?')) return;
+  D.journal = D.journal.filter(j => j.id !== id);
+  save(); renderJournal();
+}
+function renderJournal(){
+  const locked = D.settings.pinHash && !unlocked;
+  $('journalLock').style.display = locked ? '' : 'none';
+  $('journalBody').style.display = locked ? 'none' : '';
+  if (locked) return;
+  $('journalList').innerHTML = D.journal.length ? D.journal.map(j => `
+    <div class="item">
+      <div class="grow">
+        <div class="muted small">${new Date(j.date).toLocaleString(undefined,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+        <div style="white-space:pre-wrap">${esc(j.text)}</div>
+      </div>
+      <button class="subtle" onclick="delJournal('${j.id}')">🗑️</button>
+    </div>`).join('') : '<div class="empty">No entries yet. Your thoughts are safe here.</div>';
+}
+
+/* ─────────────────── insights — your free "AI" coach ─────────────────── */
+function avg(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+function renderInsights(){
+  const days = lastNDays(7);
+  const sleeps = days.map(d => hOf(d).sleep).filter(v => v != null);
+  const moods  = days.map(d => hOf(d).mood).filter(v => v != null);
+  const waters = days.map(d => hOf(d).water).filter(v => v != null);
+  const screens = days.map(screenTotal).filter(v => v > 0);
+
+  // completion rate
+  let planned = 0, done = 0;
+  days.forEach(d => {
+    const dow = new Date(d+'T12:00').getDay();
+    const todays = D.routines.filter(r => r.days.includes(dow) && r.createdAt <= new Date(d+'T23:59').getTime());
+    planned += todays.length;
+    done += todays.filter(r => (D.completions[d]||[]).includes(r.id)).length;
+  });
+  const rate = planned ? Math.round(done/planned*100) : null;
+
+  $('weekStats').innerHTML = `
+    <div><div class="n">${sleeps.length ? avg(sleeps).toFixed(1)+'h' : '—'}</div><div class="l">avg sleep</div></div>
+    <div><div class="n">${rate != null ? rate+'%' : '—'}</div><div class="l">routine done</div></div>
+    <div><div class="n">${screens.length ? fmtMin(Math.round(avg(screens))) : '—'}</div><div class="l">avg screen/day</div></div>`;
+
+  const out = [];
+  const add = (tone, text) => out.push(`<div class="item"><span class="chip ${tone}">${tone === 'good' ? '👍' : tone === 'warn' ? '⚠️' : '💡'}</span><div class="grow">${text}</div></div>`);
+
+  if (sleeps.length >= 3){
+    const s = avg(sleeps);
+    if (s < 6.5) add('warn', `You averaged <b>${s.toFixed(1)}h</b> of sleep this week — that's low. Try moving bedtime 30 minutes earlier; it's the single biggest thing you can do for mood and focus.`);
+    else if (s >= 7) add('good', `Great sleep this week — <b>${s.toFixed(1)}h</b> average. Keep protecting that bedtime.`);
+    else add('', `Sleep is okay at <b>${s.toFixed(1)}h</b>, but 7+ hours would serve you better.`);
+  }
+  if (sleeps.length >= 4 && moods.length >= 4){
+    const good = days.filter(d => (hOf(d).sleep||0) >= 7).map(d => hOf(d).mood).filter(v => v != null);
+    const poor = days.filter(d => hOf(d).sleep != null && hOf(d).sleep < 7).map(d => hOf(d).mood).filter(v => v != null);
+    if (good.length >= 2 && poor.length >= 2 && avg(good) - avg(poor) >= 0.7)
+      add('good', `Pattern found: on days you sleep 7+ hours, your mood is clearly better (${avg(good).toFixed(1)} vs ${avg(poor).toFixed(1)} out of 5). <b>Sleep is good for you</b> — protect it.`);
+  }
+  if (screens.length >= 3){
+    const s = avg(screens);
+    if (s > 300) add('warn', `Screen time is averaging <b>${fmtMin(Math.round(s))}/day</b>. Try one no-phone hour after waking up — it usually cuts the whole day's usage.`);
+    else if (s < 180) add('good', `Nice screen discipline — about <b>${fmtMin(Math.round(s))}/day</b>.`);
+    // biggest app
+    const totals = {};
+    days.forEach(d => Object.entries(D.screen[d] || {}).forEach(([a,m]) => totals[a] = (totals[a]||0)+m));
+    const top = Object.entries(totals).sort((a,b) => b[1]-a[1])[0];
+    if (top && top[1] >= 240) add('', `<b>${esc(top[0])}</b> took ${fmtMin(top[1])} of your week — is it giving that much back?`);
+  }
+  if (waters.length >= 3 && avg(waters) < 6)
+    add('', `Water is averaging ${avg(waters).toFixed(1)} glasses/day. Keep a bottle at your desk — aim for 8.`);
+  if (rate != null){
+    if (rate >= 80) add('good', `You completed <b>${rate}%</b> of your routine this week. That consistency is what changes lives — seriously.`);
+    else if (rate < 50 && planned >= 5) add('warn', `Routine completion is at <b>${rate}%</b>. Maybe trim it down — 3 things done daily beat 8 things skipped.`);
+  }
+  // streak of any completion
+  let streak = 0;
+  for (const d of lastNDays(30).reverse()){
+    if ((D.completions[d] || []).length) streak++; else if (d !== todayISO()) break;
+  }
+  if (streak >= 3) add('good', `🔥 <b>${streak}-day streak</b> of showing up for your routine. Don't break the chain!`);
+
+  $('insightsList').innerHTML = out.length ? out.join('') :
+    '<div class="empty">Log your sleep, mood, water and screen time for a few days and I\'ll start spotting patterns that are good (and bad) for you.</div>';
+}
+
+/* ─────────────────── reminders (free, on-device) ─────────────────── */
+function askNotif(){
+  if (!('Notification' in window)) return alert('This browser does not support notifications.');
+  Notification.requestPermission().then(renderToday);
+}
+$('btnEnableNotif').onclick = askNotif;
+
+function beep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; g.gain.value = .12;
+    o.start(); o.stop(ctx.currentTime + .35);
+  }catch(e){}
+}
+function checkReminders(){
+  const iso = todayISO(), dow = new Date().getDay();
+  const now = new Date().getHours()*60 + new Date().getMinutes();
+  const fired = D.settings.fired[iso] = D.settings.fired[iso] || [];
+  // keep 'fired' small: drop old days
+  Object.keys(D.settings.fired).forEach(k => { if (k !== iso) delete D.settings.fired[k]; });
+  const done = D.completions[iso] || [];
+  let changed = false;
+  D.routines.forEach(r => {
+    if (!r.time || !r.days.includes(dow) || fired.includes(r.id) || done.includes(r.id)) return;
+    const t = +r.time.slice(0,2)*60 + +r.time.slice(3);
+    if (now >= t && now <= t + 5){
+      fired.push(r.id); changed = true;
+      beep();
+      if ('Notification' in window && Notification.permission === 'granted')
+        new Notification('⏰ ' + r.title, { body: 'It\'s time — you planned this for ' + r.time + '.', tag: r.id });
+    }
+  });
+  if (changed){ save(); renderToday(); }
+}
+setInterval(checkReminders, 30000);
+
+/* ─────────────────── settings ─────────────────── */
+function saveName(){
+  D.settings.name = $('setName').value.trim();
+  save(); renderToday(); alert('Saved 👍');
+}
+function exportData(){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(D, null, 2)], {type:'application/json'}));
+  a.download = 'my-companion-backup-' + todayISO() + '.json';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function importData(input){
+  const f = input.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const d = JSON.parse(r.result);
+      if (!d.routines || !d.settings) throw 0;
+      D = Object.assign(blank(), d);
+      save(); render(); alert('Backup restored ✅');
+    }catch{ alert('That file does not look like a My Companion backup.'); }
+  };
+  r.readAsText(f);
+  input.value = '';
+}
+function resetData(){
+  if (!confirm('This erases ALL your data on this device. Are you sure?')) return;
+  if (!confirm('Really sure? There is no undo.')) return;
+  localStorage.removeItem(KEY); D = blank(); unlocked = false;
+  render();
+}
+
+/* ─────────────────── boot ─────────────────── */
+function render(){
+  renderToday(); renderRoutine(); renderHealth();
+  renderScreen(); renderJournal(); renderInsights();
+  $('setName').value = D.settings.name || '';
+}
+render();
+checkReminders();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
